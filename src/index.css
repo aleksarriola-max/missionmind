@@ -1,0 +1,56 @@
+@import 'tailwindcss';
+
+/*
+  Dynamic-color allowlist. A handful of classNames are built at runtime from
+  the app's semantic color maps (status/severity/type/channel), e.g.
+  `bg-[${STATUS_COLOR[s]}]`. Tailwind's compiler can't see interpolated
+  strings, so those exact utilities are declared here once. This is the single
+  place to update if the palette grows — it replaces the previous reliance on
+  the Tailwind CDN's runtime JIT (which is not for production).
+  Base utilities (all prefixes) + opacity-suffixed variants (bg/border).
+*/
+@source inline("{bg,text,border,border-l}-[#{050812,065f46,06b6d4,070b14,07100e,07101e,071220,0a1020,0c1a2e,0d1525,0f1a30,131b2e,162040,1e293b,1e2d55,22d3ee,2e1065,334155,34d399,451a03,475569,4c0519,64748b,67e8f9,818cf8,94a3b8,a78bfa,d6deee,e2e8f0,e2e8f6,eef1f8,f1f4fb,f43f5e,f97316,fbbf24,ffffff}]");
+@source inline("{bg,border}-[#{050812,065f46,06b6d4,07100e,071220,0a1020,0c1a2e,0d1525,0f1a30,162040,1e293b,1e2d55,22d3ee,2e1065,34d399,451a03,475569,4c0519,64748b,67e8f9,818cf8,94a3b8,a78bfa,e2e8f0,f43f5e,f97316,fbbf24}{22,33,44,55,66,88,aa}]");
+
+/* MissionMind global styles */
+:root[data-theme='dark'], :root {
+  --bg-app: #050812;
+  --bg-sidebar: #07101e;
+  --bg-panel: #0a1020;
+  --bg-input: #0f1a30;
+  --bg-active: #162040;
+  --border: #1e2d55;
+  --text-primary: #e2e8f0;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+}
+:root[data-theme='light'] {
+  --bg-app: #eef1f8;
+  --bg-sidebar: #ffffff;
+  --bg-panel: #ffffff;
+  --bg-input: #f1f4fb;
+  --bg-active: #e2e8f6;
+  --border: #d6deee;
+  --text-primary: #131b2e;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+}
+* { box-sizing: border-box; }
+body { background-color: var(--bg-app); color: var(--text-primary); font-family: 'Inter', sans-serif; overflow: hidden; margin: 0; transition: background-color 0.2s, color 0.2s; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-panel); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+#root { width: 100%; max-width: 100%; margin: 0; text-align: left; border: none; }
+.glow-cyan { box-shadow: 0 0 12px rgba(34,211,238,0.25); }
+.glow-amber { box-shadow: 0 0 12px rgba(251,191,36,0.25); }
+.glow-rose  { box-shadow: 0 0 12px rgba(244,63,94,0.35); }
+@keyframes pulse-rose { 0%,100%{opacity:1} 50%{opacity:0.5} }
+.alarm-pulse { animation: pulse-rose 1.4s ease-in-out infinite; }
+@keyframes toast-in { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: translateX(0); } }
+.toast-in { animation: toast-in 0.25s ease-out; }
+.status-nominal { background: #065f46; color: #34d399; border: 1px solid #34d39944; }
+.status-warning  { background: #451a03; color: #fbbf24; border: 1px solid #fbbf2444; }
+.status-critical { background: #4c0519; color: #f43f5e; border: 1px solid #f43f5e44; }
+.status-offline  { background: #1e293b; color: #64748b; border: 1px solid #33415544; }
+.font-mono { font-family: 'JetBrains Mono', monospace !important; }
+h1,h2,h3,h4,p { margin: 0; }
