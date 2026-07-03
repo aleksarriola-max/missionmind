@@ -3,7 +3,6 @@
 // module is portable to a serverless function later. Uses Node's global fetch.
 
 const API_VERSION = '2024-05-31';
-// eslint-disable-next-line no-unused-vars
 const IAM_URL = 'https://iam.cloud.ibm.com/identity/token';
 
 export function readConfig(env = process.env) {
@@ -33,4 +32,25 @@ export function buildGenerationRequest({ input, system, parameters = {} }, cfg) 
     url: `${cfg.url}/ml/v1/text/generation?version=${API_VERSION}`,
     body: { model_id: cfg.model, project_id: cfg.projectId, input: prompt, parameters: p },
   };
+}
+
+let _tokenCache = { token: null, expMs: 0 };
+export function _resetTokenCache() { _tokenCache = { token: null, expMs: 0 }; }
+
+export async function getIamToken(cfg, { fetchImpl = fetch, now = Date.now } = {}) {
+  const skewMs = 5 * 60 * 1000;
+  if (_tokenCache.token && _tokenCache.expMs - skewMs > now()) return _tokenCache.token;
+  const res = await fetchImpl(IAM_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
+    body: new URLSearchParams({
+      grant_type: 'urn:ibm:params:oauth:grant-type:apikey',
+      apikey: cfg.apiKey,
+    }).toString(),
+  });
+  if (!res.ok) throw new Error(`IAM ${res.status}`);
+  const data = await res.json();
+  const expMs = data.expiration ? data.expiration * 1000 : now() + (data.expires_in ?? 3600) * 1000;
+  _tokenCache = { token: data.access_token, expMs };
+  return _tokenCache.token;
 }

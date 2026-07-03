@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest';
-import { readConfig, isConfigured, buildGenerationRequest } from './graniteProxy.js';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { vi } from 'vitest';
+import { readConfig, isConfigured, buildGenerationRequest, getIamToken, _resetTokenCache } from './graniteProxy.js';
 
 describe('readConfig', () => {
   it('reads vars and strips a trailing slash from the url', () => {
@@ -44,5 +45,46 @@ describe('buildGenerationRequest', () => {
     expect(sampled.decoding_method).toBe('sample');
     expect(sampled.temperature).toBe(0.7);
     expect(sampled.max_new_tokens).toBe(128);
+  });
+});
+
+describe('getIamToken', () => {
+  beforeEach(() => _resetTokenCache());
+
+  const cfg = { apiKey: 'KEY' };
+
+  it('fetches a token from IAM and returns it', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({
+      ok: true, json: async () => ({ access_token: 'T1', expiration: 2_000_000_000 }),
+    });
+    const token = await getIamToken(cfg, { fetchImpl, now: () => 0 });
+    expect(token).toBe('T1');
+    expect(fetchImpl).toHaveBeenCalledOnce();
+    expect(fetchImpl.mock.calls[0][0]).toContain('iam.cloud.ibm.com');
+  });
+
+  it('returns the cached token before expiry (no second fetch)', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({
+      ok: true, json: async () => ({ access_token: 'T1', expiration: 2_000_000_000 }),
+    });
+    await getIamToken(cfg, { fetchImpl, now: () => 0 });
+    await getIamToken(cfg, { fetchImpl, now: () => 1000 });
+    expect(fetchImpl).toHaveBeenCalledOnce();
+  });
+
+  it('refetches after the token expires', async () => {
+    const fetchImpl = vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ access_token: 'T1', expiration: 100 }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ access_token: 'T2', expiration: 2_000_000_000 }) });
+    const t1 = await getIamToken(cfg, { fetchImpl, now: () => 0 });
+    const t2 = await getIamToken(cfg, { fetchImpl, now: () => 200_000 }); // 200s > 100s expiry (ms)
+    expect(t1).toBe('T1');
+    expect(t2).toBe('T2');
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
+  it('throws on a non-OK IAM response', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({ ok: false, status: 401 });
+    await expect(getIamToken(cfg, { fetchImpl, now: () => 0 })).rejects.toThrow('IAM 401');
   });
 });
