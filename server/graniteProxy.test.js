@@ -88,3 +88,51 @@ describe('getIamToken', () => {
     await expect(getIamToken(cfg, { fetchImpl, now: () => 0 })).rejects.toThrow('IAM 401');
   });
 });
+
+import { handleRequest } from './graniteProxy.js';
+
+describe('handleRequest', () => {
+  beforeEach(() => _resetTokenCache());
+  const cfg = { apiKey: 'k', projectId: 'p', url: 'https://host', model: 'ibm/granite-3-8b-instruct', embedModel: 'ibm/slate-125m-english-rtrvr' };
+
+  it('health reports configuration without calling watsonx', async () => {
+    const fetchImpl = vi.fn();
+    const r = await handleRequest('/api/granite/health', {}, { cfg, fetchImpl });
+    expect(r).toEqual({ status: 200, body: { configured: true, model: 'ibm/granite-3-8b-instruct' } });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it('health reports not-configured for an empty config', async () => {
+    const r = await handleRequest('/api/granite/health', {}, { cfg: { apiKey: '' }, fetchImpl: vi.fn() });
+    expect(r.body.configured).toBe(false);
+  });
+
+  it('generate returns the model text', async () => {
+    const fetchImpl = vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ access_token: 'T', expiration: 2_000_000_000 }) }) // IAM
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ results: [{ generated_text: 'HELLO' }] }) });      // generation
+    const r = await handleRequest('/api/granite/generate', { input: 'hi' }, { cfg, fetchImpl });
+    expect(r).toEqual({ status: 200, body: { text: 'HELLO' } });
+  });
+
+  it('embed returns a vector array', async () => {
+    const fetchImpl = vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ access_token: 'T', expiration: 2_000_000_000 }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ results: [{ embedding: [0.1, 0.2] }] }) });
+    const r = await handleRequest('/api/granite/embed', { inputs: ['a'] }, { cfg, fetchImpl });
+    expect(r).toEqual({ status: 200, body: { embeddings: [[0.1, 0.2]] } });
+  });
+
+  it('returns 503 for generate when not configured', async () => {
+    const r = await handleRequest('/api/granite/generate', { input: 'hi' }, { cfg: { apiKey: '' }, fetchImpl: vi.fn() });
+    expect(r.status).toBe(503);
+  });
+
+  it('returns 502 when watsonx errors', async () => {
+    const fetchImpl = vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ access_token: 'T', expiration: 2_000_000_000 }) })
+      .mockResolvedValueOnce({ ok: false, status: 500 });
+    const r = await handleRequest('/api/granite/generate', { input: 'hi' }, { cfg, fetchImpl });
+    expect(r.status).toBe(502);
+  });
+});

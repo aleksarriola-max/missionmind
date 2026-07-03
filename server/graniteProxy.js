@@ -54,3 +54,37 @@ export async function getIamToken(cfg, { fetchImpl = fetch, now = Date.now } = {
   _tokenCache = { token: data.access_token, expMs };
   return _tokenCache.token;
 }
+
+function authHeaders(token) {
+  return { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', Accept: 'application/json' };
+}
+
+export async function handleRequest(pathname, body, { cfg = readConfig(), fetchImpl = fetch } = {}) {
+  if (pathname.endsWith('/health')) {
+    return { status: 200, body: { configured: isConfigured(cfg), model: cfg.model } };
+  }
+  if (!isConfigured(cfg)) return { status: 503, body: { error: 'not_configured' } };
+  try {
+    const token = await getIamToken(cfg, { fetchImpl });
+    if (pathname.endsWith('/generate')) {
+      const { url, body: reqBody } = buildGenerationRequest(body, cfg);
+      const r = await fetchImpl(url, { method: 'POST', headers: authHeaders(token), body: JSON.stringify(reqBody) });
+      if (!r.ok) return { status: 502, body: { error: `watsonx ${r.status}` } };
+      const data = await r.json();
+      return { status: 200, body: { text: data.results?.[0]?.generated_text ?? '' } };
+    }
+    if (pathname.endsWith('/embed')) {
+      const r = await fetchImpl(`${cfg.url}/ml/v1/text/embeddings?version=${API_VERSION}`, {
+        method: 'POST',
+        headers: authHeaders(token),
+        body: JSON.stringify({ model_id: cfg.embedModel, project_id: cfg.projectId, inputs: body.inputs }),
+      });
+      if (!r.ok) return { status: 502, body: { error: `watsonx ${r.status}` } };
+      const data = await r.json();
+      return { status: 200, body: { embeddings: (data.results ?? []).map((x) => x.embedding) } };
+    }
+    return { status: 404, body: { error: 'not_found' } };
+  } catch (e) {
+    return { status: 502, body: { error: String(e?.message || e) } };
+  }
+}
