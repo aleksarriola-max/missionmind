@@ -3,6 +3,8 @@ import TopBar from '../components/TopBar.jsx';
 import Panel from '../components/Panel.jsx';
 import { KNOWLEDGE_DOCS, NOTEBOOK_ENTRIES } from '../data/knowledge.js';
 import { clickable } from '../utils/a11y.js';
+import { generate, getLastSource } from '../services/granite.js';
+import AiSourceBadge from '../components/AiSourceBadge.jsx';
 
 const CAT_COLOR = {
   'Subsystem Manual': '#22d3ee',
@@ -29,6 +31,7 @@ export default function KnowledgeBrain() {
   const [notes, setNotes] = useState(NOTEBOOK_ENTRIES);
   const [aiAnswer, setAiAnswer] = useState('');
   const [loading, setLoading] = useState(false);
+  const [aiSource, setAiSource] = useState('simulated');
 
   const filtered = query.length > 1
     ? KNOWLEDGE_DOCS.filter(d =>
@@ -37,6 +40,12 @@ export default function KnowledgeBrain() {
         d.summary.toLowerCase().includes(query.toLowerCase())
       )
     : KNOWLEDGE_DOCS;
+
+  const SPACE_OPS_SYSTEM_PROMPT =
+    'You are the MissionMind knowledge assistant for the ARES-7 Mars Orbiter (Sol 412). ' +
+    'Answer operator questions about spacecraft telemetry, anomalies, autonomy, and procedures ' +
+    'concisely and factually, citing the relevant document or section when possible. ' +
+    'If unsure, say so rather than inventing specifics.';
 
   // Topic keyword sets are intentionally overlapping (e.g. "safe mode" appears
   // under both battery and autonomy) — matchTopic scores every topic by
@@ -93,10 +102,14 @@ export default function KnowledgeBrain() {
   function askKB() {
     setLoading(true);
     setAiAnswer('');
-    setTimeout(() => {
-      setAiAnswer(matchTopic(query));
+    generate(query, {
+      system: SPACE_OPS_SYSTEM_PROMPT,
+      fallback: () => matchTopic(query),
+    }).then((answer) => {
+      setAiAnswer(answer);
+      setAiSource(getLastSource());
       setLoading(false);
-    }, 1000);
+    });
   }
 
   function addNote() {
@@ -133,7 +146,10 @@ export default function KnowledgeBrain() {
           {loading && <div className="bg-[#0a1020] border border-[#1e2d55] rounded-[5px] p-[10px] text-[12px] text-[#22d3ee] mb-[10px]">⏳ Searching knowledge base…</div>}
           {aiAnswer && !loading && (
             <div className="bg-[#071220] border border-[#22d3ee33] rounded-[5px] p-3 text-[12px] text-[#94a3b8] leading-[1.6] mb-[10px]">
-              <div className="text-[10px] text-[#22d3ee] tracking-[1px] mb-1">AI KNOWLEDGE RESPONSE</div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-[10px] text-[#22d3ee] tracking-[1px]">AI KNOWLEDGE RESPONSE</span>
+                <AiSourceBadge source={aiSource} />
+              </div>
               <p>{aiAnswer}</p>
             </div>
           )}
