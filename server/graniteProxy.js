@@ -88,3 +88,14 @@ export async function handleRequest(pathname, body, { cfg = readConfig(), fetchI
     return { status: 502, body: { error: String(e?.message || e) } };
   }
 }
+
+// Returns the upstream watsonx SSE Response so the caller can pipe its body.
+export async function streamGenerate(body, { cfg = readConfig(), fetchImpl = fetch } = {}) {
+  const token = await getIamToken(cfg, { fetchImpl });
+  const { body: reqBody } = buildGenerationRequest(body, cfg);
+  return fetchImpl(`${cfg.url}/ml/v1/text/generation_stream?version=${API_VERSION}`, {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: JSON.stringify(reqBody),
+  });
+}

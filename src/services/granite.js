@@ -49,6 +49,46 @@ export async function generate(prompt, { system, maxTokens = 512, temperature = 
   }
 }
 
+export async function* generateStream(prompt, { system, fallback, timeoutMs = 6000 } = {}) {
+  const fallbackToSim = () => { _lastSource = 'simulated'; return fallback ? fallback() : ''; };
+  if (!(await serverConfigured())) { yield fallbackToSim(); return; }
+  let res;
+  try {
+    res = await withTimeout(
+      fetch('/api/granite/generate_stream', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ input: prompt, system }),
+      }),
+      timeoutMs,
+    );
+  } catch { yield fallbackToSim(); return; }
+  if (!res.ok || !res.body) { yield fallbackToSim(); return; }
+  _lastSource = 'granite';
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let idx;
+    while ((idx = buffer.indexOf('\n\n')) >= 0) {
+      const frame = buffer.slice(0, idx);
+      buffer = buffer.slice(idx + 2);
+      const line = frame.split('\n').find((l) => l.startsWith('data:'));
+      if (!line) continue;
+      const payload = line.slice(5).trim();
+      if (!payload || payload === '[DONE]') continue;
+      try {
+        const d = JSON.parse(payload);
+        const t = d.results?.[0]?.generated_text;
+        if (t) yield t;
+      } catch { /* ignore keep-alive / non-JSON frames */ }
+    }
+  }
+}
+
 export async function embed(texts) {
   const res = await fetch('/api/granite/embed', {
     method: 'POST',

@@ -1,7 +1,7 @@
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
-import { readConfig, handleRequest } from './server/graniteProxy.js'
+import { readConfig, handleRequest, streamGenerate } from './server/graniteProxy.js'
 
 // Mounts the Granite proxy inside the dev server: same origin (no CORS),
 // credentials stay in this Node process. `env` is loaded with an empty prefix
@@ -18,6 +18,24 @@ function graniteDevServer(env) {
           let body
           try { body = raw ? JSON.parse(raw) : {} } catch { body = {} }
           const pathname = (req.originalUrl || req.url || '').split('?')[0]
+          if (pathname.endsWith('/generate_stream')) {
+            if (!readConfig(env).apiKey) { res.statusCode = 503; res.end('{"error":"not_configured"}'); return }
+            try {
+              const upstream = await streamGenerate(body, { cfg })
+              res.statusCode = upstream.status
+              res.setHeader('Content-Type', 'text/event-stream')
+              res.setHeader('Cache-Control', 'no-cache')
+              const reader = upstream.body.getReader()
+              const pump = async () => {
+                const { done, value } = await reader.read()
+                if (done) { res.end(); return }
+                res.write(Buffer.from(value))
+                pump()
+              }
+              pump()
+            } catch (e) { res.statusCode = 502; res.end(JSON.stringify({ error: String(e?.message || e) })) }
+            return
+          }
           const { status, body: out } = await handleRequest(pathname, body, { cfg })
           res.statusCode = status
           res.setHeader('Content-Type', 'application/json')

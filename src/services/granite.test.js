@@ -53,3 +53,48 @@ describe('granite.generate', () => {
     expect(getLastSource()).toBe('simulated');
   });
 });
+
+import { generateStream } from './granite.js';
+
+function sseStream(chunks) {
+  const encoder = new TextEncoder();
+  return {
+    ok: true,
+    body: {
+      getReader() {
+        let i = 0;
+        return {
+          read: async () =>
+            i < chunks.length
+              ? { done: false, value: encoder.encode(chunks[i++]) }
+              : { done: true, value: undefined },
+        };
+      },
+    },
+  };
+}
+
+describe('granite.generateStream', () => {
+  it('yields text deltas parsed from the SSE stream', async () => {
+    stubFetch({
+      '/health': () => ({ ok: true, json: async () => ({ configured: true }) }),
+      '/generate_stream': () =>
+        sseStream([
+          'data: {"results":[{"generated_text":"Hel"}]}\n\n',
+          'data: {"results":[{"generated_text":"lo"}]}\n\n',
+        ]),
+    });
+    const out = [];
+    for await (const t of generateStream('Q', { fallback: () => 'SIM' })) out.push(t);
+    expect(out.join('')).toBe('Hello');
+    expect(getLastSource()).toBe('granite');
+  });
+
+  it('yields the fallback once when not configured', async () => {
+    stubFetch({ '/health': () => ({ ok: true, json: async () => ({ configured: false }) }) });
+    const out = [];
+    for await (const t of generateStream('Q', { fallback: () => 'SIM' })) out.push(t);
+    expect(out).toEqual(['SIM']);
+    expect(getLastSource()).toBe('simulated');
+  });
+});
