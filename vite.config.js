@@ -30,9 +30,9 @@ function graniteDevServer(env) {
                 const { done, value } = await reader.read()
                 if (done) { res.end(); return }
                 res.write(Buffer.from(value))
-                pump()
+                pump().catch(() => res.end())
               }
-              pump()
+              pump().catch(() => res.end())
             } catch (e) { res.statusCode = 502; res.end(JSON.stringify({ error: String(e?.message || e) })) }
             return
           }

@@ -39,6 +39,16 @@ describe('granite.generate', () => {
     expect(getLastSource()).toBe('simulated');
   });
 
+  it('falls back to simulation when the generate call rejects (network failure mid-request)', async () => {
+    stubFetch({
+      '/health': () => ({ ok: true, json: async () => ({ configured: true }) }),
+      '/generate': () => { throw new Error('connection refused') },
+    });
+    const out = await generate('Q', { fallback: () => 'SIM' });
+    expect(out).toBe('SIM');
+    expect(getLastSource()).toBe('simulated');
+  });
+
   it('falls back to simulation when the server is not configured', async () => {
     stubFetch({ '/health': () => ({ ok: true, json: async () => ({ configured: false }) }) });
     const out = await generate('Q', { fallback: () => 'SIM' });

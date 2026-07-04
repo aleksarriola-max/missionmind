@@ -100,6 +100,7 @@ export default function KnowledgeBrain() {
   }
 
   function askKB() {
+    if (loading) return;
     setLoading(true);
     setAiAnswer('');
     generate(query, {
@@ -138,7 +139,7 @@ export default function KnowledgeBrain() {
               placeholder="Search docs or ask a question... e.g. 'solar array procedure'"
               className="flex-1 bg-[#0f1a30] border border-[#1e2d55] rounded-[5px] px-3 py-2 text-[12px] text-[#e2e8f0] outline-none"
             />
-            <button onClick={askKB} className="bg-[#162040] border border-[#22d3ee44] rounded-[5px] px-[14px] py-2 text-[12px] text-[#22d3ee] cursor-pointer">
+            <button onClick={askKB} disabled={loading} className="bg-[#162040] border border-[#22d3ee44] rounded-[5px] px-[14px] py-2 text-[12px] text-[#22d3ee] cursor-pointer">
               Ask AI
             </button>
           </div>
