@@ -45,4 +45,11 @@ describe('granite.generate', () => {
     expect(out).toBe('SIM');
     expect(getLastSource()).toBe('simulated');
   });
+
+  it('falls back to simulation when the health probe never resolves', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})));
+    const out = await generate('Q', { fallback: () => 'SIM', timeoutMs: 50 });
+    expect(out).toBe('SIM');
+    expect(getLastSource()).toBe('simulated');
+  });
 });

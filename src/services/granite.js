@@ -9,17 +9,6 @@ export function getLastSource() { return _lastSource; }
 let _healthPromise = null;
 export function __resetForTest() { _healthPromise = null; _lastSource = 'simulated'; }
 
-async function serverConfigured() {
-  if (import.meta.env.VITE_GRANITE_MODE === 'mock') return false;
-  if (!_healthPromise) {
-    _healthPromise = fetch('/api/granite/health')
-      .then((r) => (r.ok ? r.json() : { configured: false }))
-      .then((d) => Boolean(d.configured))
-      .catch(() => false);
-  }
-  return _healthPromise;
-}
-
 function withTimeout(promise, ms) {
   return Promise.race([
     promise,
@@ -27,9 +16,20 @@ function withTimeout(promise, ms) {
   ]);
 }
 
+async function serverConfigured(timeoutMs = 6000) {
+  if (import.meta.env.VITE_GRANITE_MODE === 'mock') return false;
+  if (!_healthPromise) {
+    _healthPromise = withTimeout(fetch('/api/granite/health'), timeoutMs)
+      .then((r) => (r.ok ? r.json() : { configured: false }))
+      .then((d) => Boolean(d.configured))
+      .catch(() => false);
+  }
+  return _healthPromise;
+}
+
 export async function generate(prompt, { system, maxTokens = 512, temperature = 0.2, fallback, timeoutMs = 6000 } = {}) {
   const fallbackToSim = () => { _lastSource = 'simulated'; return fallback ? fallback() : ''; };
-  if (!(await serverConfigured())) return fallbackToSim();
+  if (!(await serverConfigured(timeoutMs))) return fallbackToSim();
   try {
     const res = await withTimeout(
       fetch('/api/granite/generate', {
