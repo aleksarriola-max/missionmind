@@ -73,7 +73,7 @@ export default function MissionBriefing() {
                 <span className="text-[10px] text-[#22d3ee] tracking-[1px]">{MODES[mode].label.toUpperCase()}</span>
                 <AiSourceBadge source={source} />
               </div>
-              <p>{brief}</p>
+              <p className="whitespace-pre-wrap">{brief}</p>
             </div>
           )}
 

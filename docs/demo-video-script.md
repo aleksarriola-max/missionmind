@@ -15,7 +15,9 @@ Voiceover over B-roll / mission audio:
 ## 0:30–1:30 — Live Demo
 
 - Open MissionMind at `/`. Show the **Operator Brief** rendering: point out the
-  **GRANITE** badge, and read one sentence of the generated brief aloud.
+  honesty badge (**GRANITE** if `.env` is configured for this recording, **SIMULATED**
+  otherwise — either is fine to show, just say what it means), and read one sentence of
+  the generated brief aloud.
 - Click the **Public Digest** toggle. Show the same mission state rendering as a
   plain-language story — no jargon. Read one sentence aloud, contrast the tone with the
   Operator Brief.
