@@ -1,7 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { HashRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, AlertTriangle, Brain, GitCompare, Calendar, BookOpen, Satellite, Activity, FlaskConical, RotateCcw, Radio, BarChart3, MapPin, Users } from 'lucide-react';
+import { LayoutDashboard, AlertTriangle, Brain, GitCompare, Calendar, BookOpen, Satellite, Activity, FlaskConical, RotateCcw, Radio, BarChart3, MapPin, Users, FileText } from 'lucide-react';
 import { ThemeProvider } from './context/ThemeContext.jsx';
 import { ToastProvider } from './context/ToastContext.jsx';
 import ToastContainer from './components/ToastContainer.jsx';
@@ -13,6 +13,7 @@ import NotFound from './pages/NotFound.jsx';
 // initial paint doesn't ship all 13 pages + the Recharts bundle up front.
 // Recharts is imported by several of these, so Vite hoists it into one shared
 // async chunk the chart pages reuse; the chart-free pages never pull it.
+const MissionBriefing = lazy(() => import('./pages/MissionBriefing.jsx'));
 const Dashboard = lazy(() => import('./pages/Dashboard.jsx'));
 const AnomalyInvestigation = lazy(() => import('./pages/AnomalyInvestigation.jsx'));
 const AutonomyExplainer = lazy(() => import('./pages/AutonomyExplainer.jsx'));
@@ -31,7 +32,8 @@ const NAV_GROUPS = [
   {
     label: 'CORE OPS',
     items: [
-      { to: '/',          icon: LayoutDashboard, label: 'Mission Dashboard' },
+      { to: '/',          icon: FileText,        label: 'Mission Briefing' },
+      { to: '/dashboard', icon: LayoutDashboard, label: 'Mission Dashboard' },
       { to: '/anomaly',   icon: AlertTriangle,   label: 'Anomaly Investigation',    alarm: true },
       { to: '/autonomy',  icon: Brain,           label: 'Autonomy Explainer' },
       { to: '/plan',      icon: GitCompare,      label: 'Plan vs Actual' },
@@ -131,7 +133,8 @@ function RoutedMain() {
       <ErrorBoundary key={location.pathname}>
         <Suspense fallback={<ViewLoader />}>
           <Routes>
-            <Route path="/"          element={<Dashboard />} />
+            <Route path="/"          element={<MissionBriefing />} />
+            <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/anomaly"   element={<AnomalyInvestigation />} />
             <Route path="/autonomy"  element={<AutonomyExplainer />} />
             <Route path="/plan"      element={<PlanVsActual />} />
