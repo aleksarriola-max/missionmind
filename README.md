@@ -103,13 +103,16 @@ and making space "more accessible and understandable" to both operators and the 
 
 ## How to Run
 
+**Live demo:** [aleksarriola-max.github.io/missionmind](https://aleksarriola-max.github.io/missionmind/) — a static build with the full 14-page console. It always runs in **SIMULATED** mode (a static host has no server to hold the watsonx key), which is the app's own honest, no-backend fallback state — not a limitation specific to this deploy.
+
+**Run locally for the live GRANITE mode:**
+
 ```bash
 npm install
 npm run dev
 ```
 
-Open `http://localhost:5173` — the app runs entirely in the browser with simulated data
-(HashRouter, no backend required beyond the local Granite proxy described above).
+Open `http://localhost:5173` — with a configured `.env` (see below), AI answers are generated live by IBM Granite; without one, it runs identically to the live demo above (HashRouter, no backend required beyond the local Granite proxy).
 
 ## Tech Stack
 
