@@ -1,0 +1,1 @@
+import{s as e}from"./index-iqv72q6t.js";var t=e();function n({className:e=``}){return(0,t.jsx)(`div`,{className:`animate-pulse rounded-[5px] bg-[#0f1a30] ${e}`})}export{n as t};
